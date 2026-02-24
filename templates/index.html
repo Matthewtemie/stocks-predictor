@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockSage AI — Daily Price Predictions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ══════════════════════════════════════════════════════
+           RESET & TOKENS
+           ══════════════════════════════════════════════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            /* Surfaces */
+            --bg-deep:   #060a10;
+            --bg-card:   #0c1018;
+            --bg-hover:  #131a25;
+            --bg-inset:  #0a0e16;
+
+            /* Borders */
+            --border:    #1a2236;
+            --border-s:  #12192a;
+
+            /* Text */
+            --t1: #e8ecf2;
+            --t2: #7c8698;
+            --t3: #454e5e;
+
+            /* Accents */
+            --green:    #34d399;
+            --green-bg: rgba(52, 211, 153, 0.07);
+            --green-b:  rgba(52, 211, 153, 0.15);
+            --red:      #f87171;
+            --red-bg:   rgba(248, 113, 113, 0.07);
+            --red-b:    rgba(248, 113, 113, 0.15);
+            --blue:     #60a5fa;
+            --blue-bg:  rgba(96, 165, 250, 0.07);
+            --blue-b:   rgba(96, 165, 250, 0.15);
+            --amber:    #fbbf24;
+            --amber-bg: rgba(251, 191, 36, 0.07);
+            --amber-b:  rgba(251, 191, 36, 0.15);
+
+            /* Font stacks */
+            --font-sans:  'Instrument Sans', -apple-system, system-ui, sans-serif;
+            --font-mono:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-deep);
+            color: var(--t1);
+            line-height: 1.55;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Subtle radial glow behind the page */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: -40%;
+            background:
+                radial-gradient(ellipse at 25% 15%, rgba(96,165,250,0.035) 0%, transparent 55%),
+                radial-gradient(ellipse at 75% 85%, rgba(52,211,153,0.025) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ══════════════════════════════════════════════════════
+           LAYOUT
+           ══════════════════════════════════════════════════════ */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 52px 28px 96px;
+        }
+
+        /* ══════════════════════════════════════════════════════
+           HEADER
+           ══════════════════════════════════════════════════════ */
+        .header { text-align: center; margin-bottom: 52px; }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .logo-icon {
+            width: 46px; height: 46px;
+            background: linear-gradient(140deg, var(--blue), var(--green));
+            border-radius: 13px;
+            display: grid; place-items: center;
+            font-size: 23px;
+            box-shadow: 0 0 24px rgba(96,165,250,0.15);
+        }
+        .logo h1 {
+            font-family: var(--font-sans);
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: -0.6px;
+        }
+        .logo h1 span { color: var(--blue); }
+
+        .header p {
+            color: var(--t2);
+            font-size: 15px;
+            max-width: 530px;
+            margin: 0 auto;
+        }
+
+        .data-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 14px;
+            padding: 5px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--green-bg);
+            color: var(--green);
+            border: 1px solid var(--green-b);
+            letter-spacing: 0.2px;
+        }
+
+        /* ══════════════════════════════════════════════════════
+           TOP BAR
+           ══════════════════════════════════════════════════════ */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .timestamp {
+            color: var(--t3);
+            font-size: 13px;
+            font-family: var(--font-mono);
+        }
+        .refresh-btn {
+            font-family: var(--font-sans);
+            background: var(--blue-bg);
+            border: 1px solid var(--blue-b);
+            color: var(--blue);
+            padding: 9px 22px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.1px;
+        }
+        .refresh-btn:hover {
+            background: rgba(96,165,250,0.14);
+            border-color: var(--blue);
+            box-shadow: 0 0 16px rgba(96,165,250,0.1);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           STOCK CARDS
+           ══════════════════════════════════════════════════════ */
+        .stock-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 16px;
+            margin-bottom: 52px;
+        }
+
+        .stock-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px 26px;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stock-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .stock-card.up::before {
+            background: linear-gradient(90deg, transparent, var(--green), transparent);
+            opacity: 1;
+        }
+        .stock-card.down::before {
+            background: linear-gradient(90deg, transparent, var(--red), transparent);
+            opacity: 1;
+        }
+        .stock-card:hover {
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .ticker-badge {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .stock-name {
+            color: var(--t2);
+            font-size: 13px;
+            margin-top: 3px;
+            font-weight: 500;
+        }
+
+        .direction-pill {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 13px;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            letter-spacing: 0.3px;
+        }
+        .direction-pill.up   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-b); }
+        .direction-pill.down { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-b);   }
+
+        .price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .price-current {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: -1px;
+        }
+        .price-arrow { font-size: 18px; color: var(--t3); }
+        .price-predicted {
+            font-size: 22px;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+        .price-predicted.up   { color: var(--green); }
+        .price-predicted.down { color: var(--red);   }
+
+        .meta-row {
+            display: flex;
+            gap: 22px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-s);
+            flex-wrap: wrap;
+        }
+        .meta-item { font-size: 12px; }
+        .meta-label {
+            color: var(--t3);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 3px;
+            font-weight: 600;
+            font-size: 10px;
+        }
+        .meta-value {
+            color: var(--t2);
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        /* ══════════════════════════════════════════════════════
+           MODEL PERFORMANCE TABLE
+           ══════════════════════════════════════════════════════ */
+        .section-title {
+            font-family: var(--font-sans);
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            letter-spacing: -0.2px;
+        }
+
+        .model-table {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            border-collapse: collapse;
+            margin-bottom: 52px;
+        }
+        .model-table th {
+            background: rgba(96,165,250,0.04);
+            color: var(--t2);
+            font-family: var(--font-sans);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .model-table td {
+            font-family: var(--font-sans);
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-s);
+            font-size: 14px;
+        }
+        .model-table tr:last-child td { border-bottom: none; }
+        .model-table tr:hover td { background: var(--bg-hover); }
+
+        .model-name {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--blue);
+            font-weight: 500;
+        }
+        .metric-good { color: var(--green); font-weight: 700; }
+        .metric-ok   { color: var(--amber); font-weight: 700; }
+        .metric-bad  { color: var(--red);   font-weight: 700; }
+
+        /* ══════════════════════════════════════════════════════
+           SUBSCRIBE
+           ══════════════════════════════════════════════════════ */
+        .subscribe-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 36px 32px;
+            text-align: center;
+            margin-bottom: 52px;
+        }
+        .subscribe-section h3 {
+            font-family: var(--font-sans);
+            font-size: 19px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .subscribe-section p {
+            color: var(--t2);
+            font-size: 14px;
+            margin-bottom: 22px;
+        }
+        .subscribe-form {
+            display: flex;
+            gap: 10px;
+            max-width: 460px;
+            margin: 0 auto;
+        }
+        .subscribe-form input {
+            flex: 1;
+            font-family: var(--font-sans);
+            background: var(--bg-inset);
+            border: 1px solid var(--border);
+            color: var(--t1);
+            padding: 11px 18px;
+            border-radius: 9px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .subscribe-form input:focus { border-color: var(--blue); }
+        .subscribe-form input::placeholder { color: var(--t3); }
+
+        .subscribe-form button {
+            font-family: var(--font-sans);
+            background: linear-gradient(140deg, var(--blue), #3b82f6);
+            border: none;
+            color: #fff;
+            padding: 11px 28px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            letter-spacing: 0.2px;
+        }
+        .subscribe-form button:hover {
+            opacity: 0.9;
+            box-shadow: 0 0 20px rgba(96,165,250,0.2);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           HOW IT WORKS
+           ══════════════════════════════════════════════════════ */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+        }
+        .step-num {
+            display: inline-flex;
+            width: 30px; height: 30px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            margin-bottom: 12px;
+            background: var(--blue-bg);
+            color: var(--blue);
+            border: 1px solid var(--blue-b);
+        }
+        .step-card h4 {
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.1px;
+        }
+        .step-card p {
+            color: var(--t2);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        /* ══════════════════════════════════════════════════════
+           DISCLAIMER
+           ══════════════════════════════════════════════════════ */
+        .disclaimer {
+            background: var(--amber-bg);
+            border: 1px solid var(--amber-b);
+            border-radius: 11px;
+            padding: 18px 22px;
+            margin-top: 36px;
+        }
+        .disclaimer strong {
+            color: var(--amber);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .disclaimer p {
+            color: var(--t2);
+            font-size: 12px;
+            margin-top: 5px;
+            line-height: 1.55;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 64px 20px;
+            color: var(--t2);
+        }
+        .no-data h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--t1);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           RESPONSIVE
+           ══════════════════════════════════════════════════════ */
+        @media (max-width: 640px) {
+            .container { padding: 28px 16px 64px; }
+            .stock-grid { grid-template-columns: 1fr; }
+            .price-current { font-size: 26px; }
+            .price-predicted { font-size: 19px; }
+            .subscribe-form { flex-direction: column; }
+            .model-table { font-size: 13px; }
+            .model-table th, .model-table td { padding: 10px 12px; }
+        }
+
+        /* ══════════════════════════════════════════════════════
+           ANIMATIONS
+           ══════════════════════════════════════════════════════ */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0);    }
+        }
+        .stock-card, .step-card, .model-table, .subscribe-section {
+            animation: fadeUp 0.45s ease both;
+        }
+        .stock-card:nth-child(1) { animation-delay: 0.04s; }
+        .stock-card:nth-child(2) { animation-delay: 0.08s; }
+        .stock-card:nth-child(3) { animation-delay: 0.12s; }
+        .stock-card:nth-child(4) { animation-delay: 0.16s; }
+        .stock-card:nth-child(5) { animation-delay: 0.20s; }
+        .stock-card:nth-child(6) { animation-delay: 0.24s; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ═══ HEADER ════════════════════════════════════════ -->
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon"></div>
+            <h1>TemieStock<span>Sage</span> AI</h1>
+        </div>
+        <p>ML-powered daily closing price predictions for the 6 most traded stocks, built with real market data from the Alpaca API.</p>
+        {% if summary %}
+        {% set first_key = summary.keys()|list|first %}
+        {% set first = summary[first_key] %}
+        <div class="data-badge">● {{ first.data_source }} · {{ first.date_range }}</div>
+        {% endif %}
+    </div>
+
+    <!-- ═══ TOP BAR ═══════════════════════════════════════ -->
+    <div class="top-bar">
+        <span class="timestamp">Updated {{ last_updated }}</span>
+        <form action="/predict" method="POST" style="display:inline">
+            <button type="submit" class="refresh-btn">⟳ Refresh Predictions</button>
+        </form>
+    </div>
+
+    <!-- ═══ STOCK CARDS ═══════════════════════════════════ -->
+    {% if predictions %}
+    <div class="stock-grid">
+        {% for ticker, p in predictions.items() %}
+        <div class="stock-card {{ 'up' if p.predicted_change > 0 else 'down' }}">
+            <div class="card-header">
+                <div>
+                    <div class="ticker-badge">{{ ticker }}</div>
+                    <div class="stock-name">{{ p.stock_name }}</div>
+                </div>
+                <div class="direction-pill {{ 'up' if p.predicted_change > 0 else 'down' }}">
+                    {{ '▲' if p.predicted_change > 0 else '▼' }}
+                    {{ "%.2f"|format(p.predicted_change_pct|abs) }}%
+                </div>
+            </div>
+            <div class="price-row">
+                <span class="price-current">${{ "%.2f"|format(p.current_price) }}</span>
+                <span class="price-arrow">→</span>
+                <span class="price-predicted {{ 'up' if p.predicted_change > 0 else 'down' }}">${{ "%.2f"|format(p.predicted_price) }}</span>
+            </div>
+            <div class="meta-row">
+                <div class="meta-item">
+                    <div class="meta-label">Change</div>
+                    <div class="meta-value" style="color:{{ 'var(--green)' if p.predicted_change > 0 else 'var(--red)' }}">{{ "%+.2f"|format(p.predicted_change) }}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">RSI (14)</div>
+                    <div class="meta-value">{{ "%.0f"|format(p.rsi) }}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Volatility</div>
+                    <div class="meta-value">{{ p.volatility }}%</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Signal</div>
+                    <div class="meta-value">{% if p.rsi < 30 %}Oversold{% elif p.rsi > 70 %}Overbought{% else %}Neutral{% endif %}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-data">
+        <h3>No predictions yet</h3>
+        <p>Click "Refresh Predictions" above to run the ML models on the latest data.</p>
+    </div>
+    {% endif %}
+
+    <!-- ═══ MODEL PERFORMANCE ═════════════════════════════ -->
+    {% if report %}
+    <div class="section-title"><span>🧠</span> Model Performance</div>
+    <table class="model-table">
+        <thead><tr>
+            <th>Stock</th>
+            <th>Best Model</th>
+            <th>MAE (%)</th>
+            <th>Direction Acc.</th>
+            <th>R² Score</th>
+            <th>Samples</th>
+        </tr></thead>
+        <tbody>
+        {% for ticker, r in report.items() %}
+        <tr>
+            <td><strong>{{ ticker }}</strong></td>
+            <td><span class="model-name">{{ r.best_model }}</span></td>
+            <td style="font-family:var(--font-mono)">{{ r.best_metrics.mae }}%</td>
+            <td style="font-family:var(--font-mono)">
+                <span class="{{ 'metric-good' if r.best_metrics.direction_acc > 55 else ('metric-ok' if r.best_metrics.direction_acc > 50 else 'metric-bad') }}">
+                    {{ r.best_metrics.direction_acc }}%
+                </span>
+            </td>
+            <td>
+                <span class="{{ 'metric-good' if r.best_metrics.r2 > 0.05 else ('metric-ok' if r.best_metrics.r2 > -0.05 else 'metric-bad') }}" style="font-family:var(--font-mono)">
+                    {{ r.best_metrics.r2 }}
+                </span>
+            </td>
+            <td style="font-family:var(--font-mono)">{{ r.train_samples + r.test_samples }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- ═══ SUBSCRIBE ═════════════════════════════════════ -->
+    <div class="subscribe-section">
+        <h3>📬 Get Daily Predictions</h3>
+        <p>Receive tomorrow's predicted prices in your inbox every evening after market close.</p>
+        <form class="subscribe-form" action="/subscribe" method="POST">
+            <input type="email" name="email" placeholder="your@email.com" required>
+            <button type="submit">Subscribe</button>
+        </form>
+    </div>
+
+    <!-- ═══ HOW IT WORKS ══════════════════════════════════ -->
+    <div class="section-title"><span></span> How It Works</div>
+    <div class="steps-grid">
+        <div class="step-card">
+            <div class="step-num">1</div>
+            <h4>Data Collection</h4>
+            <p>We pull daily OHLCV bars from the <strong>Alpaca Market API</strong> — real trading data from January 2022 to today (~750+ days per stock).</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">2</div>
+            <h4>Feature Engineering</h4>
+            <p>Raw prices become 13 ML features: momentum indicators, volatility measures, volume trends, lagged returns, and RSI.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">3</div>
+            <h4>Model Training</h4>
+            <p>Three algorithms (Linear Regression, Random Forest, Gradient Boosting) compete per stock. The best performer wins.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">4</div>
+            <h4>Daily Predictions</h4>
+            <p>Each evening at 6:30 PM ET, models analyse the latest data and predict tomorrow's closing price for all 6 stocks.</p>
+        </div>
+    </div>
+
+    <!-- ═══ DISCLAIMER ════════════════════════════════════ -->
+    <div class="disclaimer">
+        <strong>⚠️ Disclaimer</strong>
+        <p>These predictions are generated by machine learning models for educational purposes only. Stock markets are influenced by countless factors beyond historical price patterns. Never invest based solely on model predictions. Always consult a qualified financial advisor.</p>
+    </div>
+</div>
+</body>
+</html>
