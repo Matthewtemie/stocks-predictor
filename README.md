@@ -173,10 +173,10 @@ git push origin master
    - `ALPACA_API_KEY` → your Alpaca key
    - `ALPACA_SECRET_KEY` → your Alpaca secret
    - `SENDER_EMAIL` → your Gmail address (optional, for email alerts)
-   - `SENDER_PASSWORD` → your Gmail App Password (optional)
+   - `SENDER_PASSWORD` → your Gmail App Password (optional, I didn't have to do this)
 6. Click **Deploy** — your app will be live at `https://stocksage-ai.onrender.com`
 
-> **Note:** Render's free tier spins down after 15 minutes of inactivity. The first visit after idle takes ~30 seconds to wake up.
+
 
 ---
 
@@ -192,4 +192,4 @@ git push origin master
 
 ## Disclaimer
 
-This project is for **educational purposes only**. Stock markets are influenced by countless factors beyond historical price patterns (earnings, news, geopolitics, sentiment). ML models can find statistical patterns but **cannot guarantee future prices**. Never invest real money based solely on model predictions. Always consult a qualified financial advisor.
+Please This project is for **educational purposes only**. Stock markets are influenced by countless factors beyond historical price patterns (earnings, news, geopolitics, sentiment). Please ML models can find statistical patterns but **cannot guarantee future prices** especially mine. Never invest real money based solely on model predictions. Always consult a qualified financial advisor.
