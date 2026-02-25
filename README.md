@@ -96,6 +96,7 @@ Raw prices aren't useful alone — the patterns matter more. We compute:
 - **RMSE** — Root Mean Squared Error: penalises big misses more heavily
 - **R²** — Coefficient of determination: 1.0 = perfect, 0.0 = random guessing
 - **MAPE** — Mean Absolute Percentage Error: error as a % of the price
+- **Huber Loss** — decides which model wins. It's quadratic for small prediction errors and linear for large ones, controlled by threshold ε=1.35
 
 ---
 
